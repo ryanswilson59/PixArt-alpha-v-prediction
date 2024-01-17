@@ -98,6 +98,7 @@ def get_beta_schedule(beta_schedule, *, beta_start, beta_end, num_diffusion_time
     else:
         raise NotImplementedError(beta_schedule)
     assert betas.shape == (num_diffusion_timesteps,)
+    betas = ensure_zero_terminal_snr(betas)
     return betas
 
 
