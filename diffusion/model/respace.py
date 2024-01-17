@@ -99,7 +99,9 @@ class SpacedDiffusion(GaussianDiffusion):
     def training_losses_diffusers(
         self, model, *args, **kwargs
     ):  # pylint: disable=signature-differs
-        return super().training_losses_diffusers(self._wrap_model(model), *args, **kwargs)
+        return super().training_losses_diffusers(
+            self._wrap_model(model), *args, **kwargs
+        )
 
     def condition_mean(self, cond_fn, *args, **kwargs):
         return super().condition_mean(self._wrap_model(cond_fn), *args, **kwargs)
@@ -110,9 +112,7 @@ class SpacedDiffusion(GaussianDiffusion):
     def _wrap_model(self, model):
         if isinstance(model, _WrappedModel):
             return model
-        return _WrappedModel(
-            model, self.timestep_map, self.original_num_steps
-        )
+        return _WrappedModel(model, self.timestep_map, self.original_num_steps)
 
     def _scale_timesteps(self, t):
         # Scaling is done by the wrapped model.
@@ -127,7 +127,9 @@ class _WrappedModel:
         self.original_num_steps = original_num_steps
 
     def __call__(self, x, timestep, **kwargs):
-        map_tensor = th.tensor(self.timestep_map, device=timestep.device, dtype=timestep.dtype)
+        map_tensor = th.tensor(
+            self.timestep_map, device=timestep.device, dtype=timestep.dtype
+        )
         new_ts = map_tensor[timestep]
         # if self.rescale_timesteps:
         #     new_ts = new_ts.float() * (1000.0 / self.original_num_steps)

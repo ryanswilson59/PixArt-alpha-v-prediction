@@ -14,6 +14,8 @@ lewei_scale = 1.0    # lewei_scale for positional embedding interpolation
 # training setting
 num_workers=4
 train_sampling_steps = 1000
+train_sampling_s=20
+model_mean_type="V"
 eval_sampling_steps = 250
 model_max_length = 120
 lora_rank = 4

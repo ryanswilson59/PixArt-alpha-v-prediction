@@ -158,7 +158,7 @@ class PixArt(nn.Module):
         model_out = self.forward(x, timestep, y, mask)
         return model_out.chunk(2, dim=1)[0]
 
-    def forward_with_cfg(self, x, timestep, y, cfg_scale, mask=None, **kwargs):
+    def forward_with_cfg(self, x, timestep, y, cfg_scale, rescale, mask=None, **kwargs):
         """
         Forward pass of PixArt, but also batches the unconditional forward pass for classifier-free guidance.
         """
@@ -169,7 +169,14 @@ class PixArt(nn.Module):
         model_out = model_out['x'] if isinstance(model_out, dict) else model_out
         eps, rest = model_out[:, :3], model_out[:, 3:]
         cond_eps, uncond_eps = torch.split(eps, len(eps) // 2, dim=0)
-        half_eps = uncond_eps + cfg_scale * (cond_eps - uncond_eps)
+
+        # from: Common Diffusion Noise Schedules and Sample Steps are Flawed
+        x_cfg = uncond_eps + cfg_scale * (cond_eps - uncond_eps)
+        sigma_x_cfg = torch.std(x_cfg)
+        sigma_x_cond = torch.std(cond_eps)
+        x_rescale = x_cfg * sigma_x_cond / sigma_x_cfg
+        half_eps = x_rescale * rescale + (1 - rescale) * x_cfg
+
         eps = torch.cat([half_eps, half_eps], dim=0)
         return torch.cat([eps, rest], dim=1)
 
