@@ -113,20 +113,39 @@ def get_named_beta_schedule(schedule_name, num_diffusion_timesteps):
         # Linear schedule from Ho et al, extended to work for any number of
         # diffusion steps.
         scale = 1000 / num_diffusion_timesteps
-        return get_beta_schedule(
+        betas = get_beta_schedule(
             "linear",
             beta_start=scale * 0.0001,
             beta_end=scale * 0.02,
             num_diffusion_timesteps=num_diffusion_timesteps,
         )
     elif schedule_name == "squaredcos_cap_v2":
-        return betas_for_alpha_bar(
+        betas = betas_for_alpha_bar(
             num_diffusion_timesteps,
             lambda t: math.cos((t + 0.008) / 1.008 * math.pi / 2) ** 2,
         )
     else:
         raise NotImplementedError(f"unknown beta schedule: {schedule_name}")
+    betas = ensure_zero_terminal_snr(betas)
+    return betas
 
+def ensure_zero_terminal_snr(betas):
+    alphas = 1 - betas
+    alphas_bar = alphas.cumprod(0)
+    alphas_bar_sqrt = alphas_bar.sqrt()
+    # Store old values.
+    alphas_bar_sqrt_0 = alphas_bar_sqrt[0].clone()
+    alphas_bar_sqrt_T = alphas_bar_sqrt[-1].clone()
+    # Shift so last timestep is zero.
+    alphas_bar_sqrt -= alphas_bar_sqrt_T
+    # Scale so first timestep is back to old value.
+    alphas_bar_sqrt *= alphas_bar_sqrt_0 / ( alphas_bar_sqrt_0 - alphas_bar_sqrt_T)
+    # Convert alphas_bar_sqrt to betas
+    alphas_bar = alphas_bar_sqrt ** 2
+    alphas = alphas_bar[1:] / alphas_bar[:-1]
+    alphas = th.cat([alphas_bar[0:1], alphas])
+    betas = 1 - alphas
+    return betas
 
 def betas_for_alpha_bar(num_diffusion_timesteps, alpha_bar, max_beta=0.999):
     """
