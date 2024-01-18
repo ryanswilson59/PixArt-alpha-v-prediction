@@ -1,8 +1,8 @@
 data_root = '/data/data'
 data = dict(type='InternalData', root='images', image_list_json=['data_info.json'], transform='default_train', load_vae_feat=True)
 image_size = 256  # the generated image resolution
-train_batch_size = 32
-eval_batch_size = 16
+train_batch_size = 1
+eval_batch_size = 1
 use_fsdp=False   # if use FSDP mode
 valid_num=0      # take as valid aspect-ratio when sample number >= valid_num
 
