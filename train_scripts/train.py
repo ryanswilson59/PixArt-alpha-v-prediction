@@ -95,12 +95,10 @@ def train():
 
             # Sample a random timestep for each image
             bs = clean_images.shape[0]
-            timesteps_index = torch.randint(
-                0, config.train_sampling_s, (bs,), device=clean_images.device
-            ).long()
+            timesteps_index = torch.randint(0, config.train_sampling_s, (bs,)).long()
             timestep_values = torch.linspace(
                 config.train_sampling_steps / config.train_sampling_s,
-                config.train_sampling_steps,
+                config.train_sampling_steps - 1,
                 config.train_sampling_s,
             )
             timesteps = timestep_values[timesteps_index].to(clean_images.device).long()

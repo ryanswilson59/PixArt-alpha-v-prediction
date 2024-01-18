@@ -130,13 +130,13 @@ def get_named_beta_schedule(schedule_name, num_diffusion_timesteps):
     betas = ensure_zero_terminal_snr(betas)
     return betas
 
-def ensure_zero_terminal_snr(betas):
-    alphas = 1 - betas
+def ensure_zero_terminal_snr(betas: np.ndarray):
+    alphas : np.ndarray = 1 - betas
     alphas_bar = alphas.cumprod(0)
-    alphas_bar_sqrt = alphas_bar.sqrt()
+    alphas_bar_sqrt = np.sqrt(alphas_bar)
     # Store old values.
-    alphas_bar_sqrt_0 = alphas_bar_sqrt[0].clone()
-    alphas_bar_sqrt_T = alphas_bar_sqrt[-1].clone()
+    alphas_bar_sqrt_0 : np.float16 = alphas_bar_sqrt[0]
+    alphas_bar_sqrt_T = alphas_bar_sqrt[-1]
     # Shift so last timestep is zero.
     alphas_bar_sqrt -= alphas_bar_sqrt_T
     # Scale so first timestep is back to old value.
@@ -144,7 +144,7 @@ def ensure_zero_terminal_snr(betas):
     # Convert alphas_bar_sqrt to betas
     alphas_bar = alphas_bar_sqrt ** 2
     alphas = alphas_bar[1:] / alphas_bar[:-1]
-    alphas = th.cat([alphas_bar[0:1], alphas])
+    alphas = np.concatenate([alphas_bar[0:1], alphas])
     betas = 1 - alphas
     return betas
 
@@ -265,6 +265,16 @@ class GaussianDiffusion:
             _extract_into_tensor(self.sqrt_alphas_cumprod, t, x_start.shape) * x_start
             + _extract_into_tensor(self.sqrt_one_minus_alphas_cumprod, t, x_start.shape)
             * noise
+        )
+
+    def target_v(self, noise, x_start, t):
+        """
+        Get the target v = sqrt(alpha) * eps - sqrt(1-alpha) * x_t.
+        """
+        return (
+            _extract_into_tensor(self.sqrt_alphas_cumprod, t, x_start.shape) * noise
+            - _extract_into_tensor(self.sqrt_one_minus_alphas_cumprod, t, x_start.shape)
+            * x_start
         )
 
     def q_posterior_mean_variance(self, x_start, x_t, t):
@@ -871,8 +881,7 @@ class GaussianDiffusion:
                 )[0],
                 ModelMeanType.START_X: x_start,
                 ModelMeanType.EPSILON: noise,
-                ModelMeanType.V: self.sqrt_alphas_cumprod * noise
-                - self.sqrt_one_minus_alphas_cumprod * x_start,
+                ModelMeanType.V: self.target_v(noise=noise, x_start=x_start, t=t),
             }[self.model_mean_type]
             assert output.shape == target.shape == x_start.shape
             if self.snr:
@@ -1106,7 +1115,7 @@ class GaussianDiffusion:
         }
 
 
-def _extract_into_tensor(arr, timesteps, broadcast_shape):
+def _extract_into_tensor(arr, timesteps, broadcast_shape) -> th.Tensor:
     """
     Extract values from a 1-D numpy array for a batch of indices.
     :param arr: the 1-D numpy array.
